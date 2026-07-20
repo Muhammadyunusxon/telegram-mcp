@@ -1,0 +1,101 @@
+{
+  "manifest_version": "0.3",
+  "name": "telegram-mcp-mtproto",
+  "display_name": "Telegram (MTProto)",
+  "version": "1.0.0",
+  "description": "Control your personal Telegram account from Claude: send/read messages, media, search, reactions, scheduled messages, and group/channel administration.",
+  "long_description": "A Model Context Protocol server that connects Claude to your personal Telegram account via the MTProto API (Telethon). Includes 26 tools across messaging, media, discovery, and group/channel administration, plus safety guards: a read-only mode, a chat allowlist, automatic FloodWait handling, and explicit confirmation for destructive actions. This is a LOCAL server — it runs on your machine with your own API credentials and a one-time login. Your session credentials never leave your device.",
+  "author": {
+    "name": "Muhammadyunusxon",
+    "url": "https://github.com/Muhammadyunusxon"
+  },
+  "homepage": "https://github.com/Muhammadyunusxon/telegram-mcp",
+  "documentation": "https://github.com/Muhammadyunusxon/telegram-mcp/blob/main/README.md",
+  "support": "https://github.com/Muhammadyunusxon/telegram-mcp/issues",
+  "license": "MIT",
+  "privacy_policies": [
+    "https://github.com/Muhammadyunusxon/telegram-mcp/blob/main/PRIVACY.md"
+  ],
+  "keywords": ["telegram", "mtproto", "telethon", "messaging", "chat"],
+  "server": {
+    "type": "python",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "python3",
+      "args": ["${__dirname}/server.py"],
+      "env": {
+        "PYTHONPATH": "${__dirname}/lib",
+        "TELEGRAM_API_ID": "${user_config.api_id}",
+        "TELEGRAM_API_HASH": "${user_config.api_hash}",
+        "TELEGRAM_SESSION": "${HOME}/.telegram-mcp/telegram_mcp",
+        "TELEGRAM_READONLY": "${user_config.readonly}",
+        "TELEGRAM_ALLOWED_PEERS": "${user_config.allowed_peers}"
+      }
+    }
+  },
+  "user_config": {
+    "api_id": {
+      "type": "string",
+      "title": "Telegram API ID",
+      "description": "From my.telegram.org → API development tools",
+      "required": true,
+      "sensitive": true
+    },
+    "api_hash": {
+      "type": "string",
+      "title": "Telegram API Hash",
+      "description": "From my.telegram.org → API development tools",
+      "required": true,
+      "sensitive": true
+    },
+    "readonly": {
+      "type": "boolean",
+      "title": "Read-only mode",
+      "description": "Disable all write/modify actions (recommended for safety)",
+      "required": false,
+      "default": false
+    },
+    "allowed_peers": {
+      "type": "string",
+      "title": "Allowed peers (optional)",
+      "description": "Comma-separated @usernames or IDs. If set, messages can only be sent to these chats.",
+      "required": false,
+      "default": ""
+    }
+  },
+  "tools": [
+    { "name": "send_message", "description": "Send a text message" },
+    { "name": "read_messages", "description": "Read recent messages from a chat" },
+    { "name": "search_messages", "description": "Search messages in a chat or globally" },
+    { "name": "reply_message", "description": "Reply to a specific message" },
+    { "name": "edit_message", "description": "Edit a message you sent" },
+    { "name": "forward_message", "description": "Forward a message to another chat" },
+    { "name": "delete_message", "description": "Delete a message (requires confirmation)" },
+    { "name": "pin_message", "description": "Pin a message in a chat" },
+    { "name": "unpin_message", "description": "Unpin a message" },
+    { "name": "react", "description": "Add an emoji reaction to a message" },
+    { "name": "schedule_message", "description": "Schedule a message for a future time" },
+    { "name": "mark_read", "description": "Mark a chat as read" },
+    { "name": "send_file", "description": "Send a photo, document, video, or voice note" },
+    { "name": "download_media", "description": "Download media from a message" },
+    { "name": "get_me", "description": "Info about the logged-in account" },
+    { "name": "list_dialogs", "description": "List recent chats" },
+    { "name": "list_contacts", "description": "List your contacts" },
+    { "name": "resolve_entity", "description": "Look up an @username, phone, or ID" },
+    { "name": "send_to_channel", "description": "Post to a channel or group" },
+    { "name": "create_group", "description": "Create a new group" },
+    { "name": "get_participants", "description": "List members of a group/channel" },
+    { "name": "add_participants", "description": "Add members to a group/channel" },
+    { "name": "remove_participant", "description": "Remove/ban a member (requires confirmation)" },
+    { "name": "promote_admin", "description": "Promote a member to admin" },
+    { "name": "join_chat", "description": "Join a group/channel by link or username" },
+    { "name": "leave_chat", "description": "Leave a group/channel (requires confirmation)" }
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  }
+}

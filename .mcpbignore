@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.env.*
+*.session
+*.session-journal
+tests
+downloads
+dist
+build
+__pycache__
+*.pyc
+.venv
+test_session*
+*.mcpb

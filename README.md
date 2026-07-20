@@ -104,6 +104,25 @@ Claude Desktop, then look for the `telegram` tools.
 - "React 🔥 to message 1234 in @mychat"
 - "Schedule 'Good morning' to @friend at 2026-07-21T06:00"
 
+## Install as a Claude Desktop Extension (.mcpb)
+
+This repo ships a Desktop Extension bundle so it can be installed in one click
+and submitted to the [Anthropic Connectors Directory](https://claude.com/docs/connectors/building/submission).
+
+- `manifest.json` — MCPB manifest (all tools annotated with `readOnlyHint` /
+  `destructiveHint`; `api_id` / `api_hash` collected as sensitive user config).
+- Download the `.mcpb` from [Releases](https://github.com/Muhammadyunusxon/telegram-mcp/releases)
+  and open it with Claude Desktop, or build it yourself:
+
+```bash
+pip install -r requirements.txt --target lib   # vendor deps into the bundle
+npx @anthropic-ai/mcpb pack . telegram-mcp.mcpb
+```
+
+> **One-time login:** because this uses your Telegram *account* (MTProto), you
+> must create the session once by running `python login.py` locally before the
+> extension can connect. See [PRIVACY.md](PRIVACY.md) for how your data is handled.
+
 ## Development
 ```bash
 pip install pytest

@@ -11,6 +11,10 @@ test_session*
 dist/
 build/
 
+# MCPB paket va vendored kutubxonalar (release'ga ilova qilinadi, commit qilinmaydi)
+lib/
+*.mcpb
+
 # Python
 __pycache__/
 *.py[cod]

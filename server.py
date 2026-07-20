@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from telethon import TelegramClient, functions, errors
 from telethon.tl.types import User, Chat, Channel, ReactionEmoji
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 # --- Sozlamalar / Configuration -------------------------------------------
 
@@ -134,44 +135,52 @@ def _describe(entity) -> dict:
     return d
 
 
-def tg_tool(func):
+def tg_tool(title, read_only=False, destructive=False):
     """
+    Tool dekoratori — annotatsiya (title/readOnlyHint/destructiveHint) bilan.
     Har bir tool uchun umumiy o'ram:
       - ulanishni ta'minlaydi (_ensure_connected)
       - FloodWait xatosini avtomatik ushlaydi va kutib qayta uradi
       - SafetyError'ni tushunarli matn qilib qaytaradi
     FastMCP sxemasi buzilmasligi uchun imzo (signature) saqlanadi.
     """
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            await _ensure_connected()
-        except Exception as e:
-            return f"❌ Ulanish xatosi: {e}"
-        for attempt in range(4):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
             try:
-                return await func(*args, **kwargs)
-            except errors.FloodWaitError as e:
-                if e.seconds > MAX_FLOODWAIT or attempt == 3:
-                    return (f"⏳ FloodWait: Telegram {e.seconds}s kutishni so'radi. "
-                            f"Keyinroq urinib ko'ring.")
-                await asyncio.sleep(e.seconds + 1)
-            except SafetyError as e:
-                return str(e)
+                await _ensure_connected()
             except Exception as e:
-                return f"❌ Xatolik ({e.__class__.__name__}): {e}"
-    wrapper.__wrapped__ = func
-    try:
-        wrapper.__signature__ = inspect.signature(func)
-    except (ValueError, TypeError):
-        pass
-    wrapper.__annotations__ = getattr(func, "__annotations__", {})
-    return mcp.tool()(wrapper)
+                return f"❌ Ulanish xatosi: {e}"
+            for attempt in range(4):
+                try:
+                    return await func(*args, **kwargs)
+                except errors.FloodWaitError as e:
+                    if e.seconds > MAX_FLOODWAIT or attempt == 3:
+                        return (f"⏳ FloodWait: Telegram {e.seconds}s kutishni so'radi. "
+                                f"Keyinroq urinib ko'ring.")
+                    await asyncio.sleep(e.seconds + 1)
+                except SafetyError as e:
+                    return str(e)
+                except Exception as e:
+                    return f"❌ Xatolik ({e.__class__.__name__}): {e}"
+        wrapper.__wrapped__ = func
+        try:
+            wrapper.__signature__ = inspect.signature(func)
+        except (ValueError, TypeError):
+            pass
+        wrapper.__annotations__ = getattr(func, "__annotations__", {})
+        annotations = ToolAnnotations(
+            title=title,
+            readOnlyHint=read_only,
+            destructiveHint=destructive,
+        )
+        return mcp.tool(annotations=annotations)(wrapper)
+    return decorator
 
 
 # --- Xabar tool'lari / Messaging ------------------------------------------
 
-@tg_tool
+@tg_tool("Send message")
 async def send_message(peer: str, text: str) -> str:
     """Berilgan chat/foydalanuvchi/kanalga matnli xabar yuboradi.
 
@@ -186,7 +195,7 @@ async def send_message(peer: str, text: str) -> str:
     return f"✅ Yuborildi. message_id={msg.id}, peer={_describe(entity)['name']}"
 
 
-@tg_tool
+@tg_tool("Read messages", read_only=True)
 async def read_messages(peer: str, limit: int = 20) -> str:
     """Chat/foydalanuvchidan so'nggi xabarlarni o'qiydi.
 
@@ -209,7 +218,7 @@ async def read_messages(peer: str, limit: int = 20) -> str:
     return header + "\n" + "\n".join(lines) if lines else header + "\n(xabar yo'q)"
 
 
-@tg_tool
+@tg_tool("Search messages", read_only=True)
 async def search_messages(peer: str, query: str, limit: int = 20) -> str:
     """Chat ichida yoki (peer='') global bo'yicha xabar qidiradi.
 
@@ -230,7 +239,7 @@ async def search_messages(peer: str, query: str, limit: int = 20) -> str:
     return "\n".join(lines) if lines else "(hech narsa topilmadi)"
 
 
-@tg_tool
+@tg_tool("Reply to message")
 async def reply_message(peer: str, reply_to_message_id: int, text: str) -> str:
     """Muayyan xabarga reply (javob) tarzida xabar yuboradi.
 
@@ -246,7 +255,7 @@ async def reply_message(peer: str, reply_to_message_id: int, text: str) -> str:
     return f"✅ Javob yuborildi. message_id={msg.id}"
 
 
-@tg_tool
+@tg_tool("Edit message")
 async def edit_message(peer: str, message_id: int, new_text: str) -> str:
     """O'zingiz yuborgan xabarni tahrirlaydi.
 
@@ -262,7 +271,7 @@ async def edit_message(peer: str, message_id: int, new_text: str) -> str:
     return f"✅ Tahrirlandi: id={message_id}"
 
 
-@tg_tool
+@tg_tool("Forward message")
 async def forward_message(from_peer: str, message_id: int, to_peer: str) -> str:
     """Xabarni bir chatdan boshqasiga forward qiladi."""
     _guard_write()
@@ -273,7 +282,7 @@ async def forward_message(from_peer: str, message_id: int, to_peer: str) -> str:
     return f"✅ Forward qilindi -> {_describe(dst)['name']}"
 
 
-@tg_tool
+@tg_tool("Delete message", destructive=True)
 async def delete_message(peer: str, message_id: int, confirm: bool = False,
                          revoke: bool = True) -> str:
     """Xabarni o'chiradi. Xavfsizlik uchun confirm=True talab qilinadi.
@@ -293,7 +302,7 @@ async def delete_message(peer: str, message_id: int, confirm: bool = False,
     return f"✅ O'chirildi: id={message_id}"
 
 
-@tg_tool
+@tg_tool("Pin message")
 async def pin_message(peer: str, message_id: int, notify: bool = False) -> str:
     """Xabarni chatda pin qiladi.
 
@@ -309,7 +318,7 @@ async def pin_message(peer: str, message_id: int, notify: bool = False) -> str:
     return f"📌 Pin qilindi: id={message_id}"
 
 
-@tg_tool
+@tg_tool("Unpin message")
 async def unpin_message(peer: str, message_id: int = 0) -> str:
     """Xabar pinini olib tashlaydi. message_id=0 bo'lsa barcha pinlarni oladi."""
     _guard_write()
@@ -318,7 +327,7 @@ async def unpin_message(peer: str, message_id: int = 0) -> str:
     return "✅ Pin olib tashlandi"
 
 
-@tg_tool
+@tg_tool("React to message")
 async def react(peer: str, message_id: int, emoji: str = "👍") -> str:
     """Xabarga emoji-reaksiya qo'yadi (bo'sh emoji reaksiyani olib tashlaydi).
 
@@ -336,7 +345,7 @@ async def react(peer: str, message_id: int, emoji: str = "👍") -> str:
     return f"✅ Reaksiya: {emoji or '(olib tashlandi)'} -> id={message_id}"
 
 
-@tg_tool
+@tg_tool("Schedule message")
 async def schedule_message(peer: str, text: str, when: str) -> str:
     """Xabarni belgilangan vaqtda yuborilishga rejalashtiradi.
 
@@ -358,7 +367,7 @@ async def schedule_message(peer: str, text: str, when: str) -> str:
     return f"🕒 Rejalashtirildi ({when}) -> {_describe(entity)['name']}, id={msg.id}"
 
 
-@tg_tool
+@tg_tool("Mark chat as read")
 async def mark_read(peer: str) -> str:
     """Chatdagi barcha xabarlarni o'qilgan deb belgilaydi."""
     _guard_write()
@@ -369,7 +378,7 @@ async def mark_read(peer: str) -> str:
 
 # --- Media tool'lari / Media ----------------------------------------------
 
-@tg_tool
+@tg_tool("Send file")
 async def send_file(peer: str, path: str, caption: str = "",
                     voice: bool = False) -> str:
     """Fayl (rasm, hujjat, video, audio) yuboradi.
@@ -389,7 +398,7 @@ async def send_file(peer: str, path: str, caption: str = "",
     return f"✅ Fayl yuborildi: {os.path.basename(path)} -> {_describe(entity)['name']}, id={msg.id}"
 
 
-@tg_tool
+@tg_tool("Download media", read_only=True)
 async def download_media(peer: str, message_id: int, dest_dir: str = "") -> str:
     """Xabardagi media (rasm/fayl/video)ni yuklab oladi.
 
@@ -410,7 +419,7 @@ async def download_media(peer: str, message_id: int, dest_dir: str = "") -> str:
 
 # --- Ro'yxat / Discovery ---------------------------------------------------
 
-@tg_tool
+@tg_tool("Get my account info", read_only=True)
 async def get_me() -> str:
     """Joriy (login qilingan) akkaunt haqida ma'lumot."""
     me = await client.get_me()
@@ -419,7 +428,7 @@ async def get_me() -> str:
     return str(info) + mode
 
 
-@tg_tool
+@tg_tool("List chats", read_only=True)
 async def list_dialogs(limit: int = 30) -> str:
     """So'nggi chatlar (dialoglar) ro'yxati: shaxsiy, guruh, kanal.
 
@@ -436,7 +445,7 @@ async def list_dialogs(limit: int = 30) -> str:
     return "\n".join(lines) if lines else "(dialog yo'q)"
 
 
-@tg_tool
+@tg_tool("List contacts", read_only=True)
 async def list_contacts() -> str:
     """Barcha Telegram kontaktlaringiz ro'yxati."""
     result = await client(functions.contacts.GetContactsRequest(hash=0))
@@ -449,7 +458,7 @@ async def list_contacts() -> str:
     return "\n".join(lines) if lines else "(kontakt yo'q)"
 
 
-@tg_tool
+@tg_tool("Resolve username or ID", read_only=True)
 async def resolve_entity(peer: str) -> str:
     """@username, telefon yoki ID bo'yicha entity ma'lumotini oladi."""
     entity = await client.get_entity(peer)
@@ -458,7 +467,7 @@ async def resolve_entity(peer: str) -> str:
 
 # --- Kanal / guruh boshqaruvi / Channel & group management ----------------
 
-@tg_tool
+@tg_tool("Post to channel")
 async def send_to_channel(channel: str, text: str) -> str:
     """Kanal yoki guruhga post joylaydi."""
     _guard_write()
@@ -468,7 +477,7 @@ async def send_to_channel(channel: str, text: str) -> str:
     return f"✅ Post joylandi: {_describe(entity)['name']}, id={msg.id}"
 
 
-@tg_tool
+@tg_tool("Create group")
 async def create_group(title: str, members: list[str]) -> str:
     """Yangi guruh yaratadi va a'zolarni qo'shadi.
 
@@ -482,7 +491,7 @@ async def create_group(title: str, members: list[str]) -> str:
     return f"✅ Guruh yaratildi: {title}"
 
 
-@tg_tool
+@tg_tool("List participants", read_only=True)
 async def get_participants(chat: str, limit: int = 100) -> str:
     """Guruh/kanal a'zolari ro'yxatini oladi.
 
@@ -499,7 +508,7 @@ async def get_participants(chat: str, limit: int = 100) -> str:
     return "\n".join(lines) if lines else "(a'zo topilmadi)"
 
 
-@tg_tool
+@tg_tool("Add participants")
 async def add_participants(chat: str, members: list[str]) -> str:
     """Guruh/kanalga yangi a'zolar qo'shadi."""
     _guard_write()
@@ -519,7 +528,7 @@ async def add_participants(chat: str, members: list[str]) -> str:
     return res
 
 
-@tg_tool
+@tg_tool("Remove participant", destructive=True)
 async def remove_participant(chat: str, member: str, confirm: bool = False) -> str:
     """Guruh/kanaldan a'zoni chiqaradi. confirm=True talab qilinadi.
 
@@ -537,7 +546,7 @@ async def remove_participant(chat: str, member: str, confirm: bool = False) -> s
     return f"✅ Chiqarildi: {_describe(user)['name']}"
 
 
-@tg_tool
+@tg_tool("Promote to admin")
 async def promote_admin(chat: str, member: str) -> str:
     """Foydalanuvchini guruh/kanalda administrator qiladi."""
     _guard_write()
@@ -551,7 +560,7 @@ async def promote_admin(chat: str, member: str) -> str:
     return f"✅ Admin qilindi: {_describe(user)['name']}"
 
 
-@tg_tool
+@tg_tool("Join chat")
 async def join_chat(link: str) -> str:
     """Public @username yoki invite link orqali guruh/kanalga qo'shiladi."""
     _guard_write()
@@ -567,7 +576,7 @@ async def join_chat(link: str) -> str:
         return "Siz allaqachon a'zosiz."
 
 
-@tg_tool
+@tg_tool("Leave chat", destructive=True)
 async def leave_chat(chat: str, confirm: bool = False) -> str:
     """Guruh/kanaldan chiqadi. confirm=True talab qilinadi."""
     _guard_write()
