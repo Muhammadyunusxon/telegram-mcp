@@ -1,0 +1,33 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.Muhammadyunusxon/telegram-mcp",
+  "description": "Control your personal Telegram account (MTProto/Telethon) from an MCP client: send and read messages, search, and manage groups and channels.",
+  "repository": {
+    "url": "https://github.com/Muhammadyunusxon/telegram-mcp",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "telegram-mcp-mtproto",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "TELEGRAM_API_ID",
+          "description": "API ID from my.telegram.org",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "TELEGRAM_API_HASH",
+          "description": "API hash from my.telegram.org",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

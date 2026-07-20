@@ -1,0 +1,24 @@
+# Smithery listing config — https://smithery.ai/docs
+# This is a LOCAL (stdio) server: users run it on their own machine with
+# their own Telegram credentials and a one-time interactive login.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required: ["TELEGRAM_API_ID", "TELEGRAM_API_HASH"]
+    properties:
+      TELEGRAM_API_ID:
+        type: string
+        description: API ID from my.telegram.org
+      TELEGRAM_API_HASH:
+        type: string
+        description: API hash from my.telegram.org
+  commandFunction: |
+    (config) => ({
+      command: 'python3',
+      args: ['server.py'],
+      env: {
+        TELEGRAM_API_ID: config.TELEGRAM_API_ID,
+        TELEGRAM_API_HASH: config.TELEGRAM_API_HASH
+      }
+    })

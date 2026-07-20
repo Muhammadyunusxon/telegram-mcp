@@ -1,0 +1,21 @@
+# === SIRLAR / SECRETS — hech qachon commit qilinmaydi ===
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
