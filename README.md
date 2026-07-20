@@ -4,8 +4,9 @@ An [MCP](https://modelcontextprotocol.io) server that lets Claude (or any MCP
 client) control **your personal Telegram account** via the MTProto API
 ([Telethon](https://github.com/LonamiWebs/Telethon)) — not a bot.
 
-Send and read messages, search, manage contacts, and administer groups and
-channels, all from your AI assistant.
+Send/read messages, media, search, reactions, scheduled messages, and full
+group/channel administration — all from your AI assistant, with built-in
+safety guards.
 
 > 🇺🇿 O'zbekcha qo'llanma: [README.uz.md](README.uz.md)
 
@@ -16,35 +17,40 @@ channels, all from your AI assistant.
 - This server has **full access** to your account. Your `.session` file and
   `api_hash` act like a login — never share them or commit them to git
   (`.gitignore` already excludes them).
-- Telegram limits automation. Sending bulk or spam messages can get your
-  account limited or banned. Use responsibly, on your own account.
+- Telegram limits automation. Bulk/spam messages can get your account limited
+  or banned. Use responsibly, on your own account.
 - Each user runs this with **their own** API credentials. There is no shared
   hosted service.
 
-## Features (18 tools)
+### Built-in safety guards
 
-| Tool | Description |
-|------|-------------|
-| `send_message` | Send a text message |
-| `read_messages` | Read recent messages from a chat |
-| `search_messages` | Search messages (in a chat or globally) |
-| `forward_message` | Forward a message |
-| `delete_message` | Delete a message |
-| `mark_read` | Mark a chat as read |
-| `get_me` | Info about the logged-in account |
-| `list_dialogs` | List recent chats |
-| `list_contacts` | List your contacts |
-| `resolve_entity` | Look up an @username/phone/ID |
-| `send_to_channel` | Post to a channel/group |
-| `create_group` | Create a new group |
-| `get_participants` | List members of a group/channel |
-| `add_participants` | Add members |
-| `remove_participant` | Remove/ban a member |
-| `promote_admin` | Promote a member to admin |
-| `join_chat` | Join a group/channel by @username or invite link |
-| `leave_chat` | Leave a group/channel |
+| Env var | Effect |
+|---------|--------|
+| `TELEGRAM_READONLY=1` | Disables every write/modify tool — read-only mode |
+| `TELEGRAM_ALLOWED_PEERS=@chan,123,me` | Messages can only be sent to these peers |
+| `TELEGRAM_MAX_FLOODWAIT=60` | Auto-wait up to N seconds on Telegram FloodWait, then retry |
+
+Destructive tools (`delete_message`, `remove_participant`, `leave_chat`)
+require an explicit `confirm=true` argument. FloodWait errors are caught and
+retried automatically.
+
+## Features (26 tools)
+
+**Messaging:** `send_message`, `read_messages`, `search_messages`,
+`reply_message`, `edit_message`, `forward_message`, `delete_message`,
+`pin_message`, `unpin_message`, `react`, `schedule_message`, `mark_read`
+
+**Media:** `send_file` (photo/document/video/voice), `download_media`
+
+**Discovery:** `get_me`, `list_dialogs`, `list_contacts`, `resolve_entity`
+
+**Groups & channels:** `send_to_channel`, `create_group`, `get_participants`,
+`add_participants`, `remove_participant`, `promote_admin`, `join_chat`,
+`leave_chat`
 
 `peer` accepts an `@username`, phone number, chat ID, or `"me"` (Saved Messages).
+
+---
 
 ## Setup
 
@@ -63,15 +69,15 @@ pip3 install -r requirements.txt
 ```bash
 cp .env.example .env
 ```
-Edit `.env` and fill in your `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
+Edit `.env` and fill in `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
 
 ### 4. Log in (once)
 ```bash
 python3 login.py
 ```
-Enter your phone number (international format, e.g. `+1555...`), the code
-Telegram sends you, and your 2FA password if enabled. This creates a
-`telegram_mcp.session` file so you won't need to log in again.
+Enter your phone (international format, e.g. `+1555...`), the code Telegram
+sends, and your 2FA password if enabled. This creates a `telegram_mcp.session`
+file so you won't need to log in again.
 
 ### 5. Connect to Claude Desktop
 Edit your `claude_desktop_config.json`:
@@ -89,13 +95,23 @@ Edit your `claude_desktop_config.json`:
 }
 ```
 
-The server reads your credentials from `.env` automatically. Fully quit and
-reopen Claude Desktop, then look for the `telegram` tools.
+The server reads credentials from `.env` automatically. Fully quit and reopen
+Claude Desktop, then look for the `telegram` tools.
 
 ## Try it
 - "Send 'hello' to my Saved Messages"
-- "Show my last 10 chats"
-- "Read the last 5 messages from @some_channel"
+- "Send the file ~/report.pdf to @someone with caption 'draft'"
+- "React 🔥 to message 1234 in @mychat"
+- "Schedule 'Good morning' to @friend at 2026-07-21T06:00"
+
+## Development
+```bash
+pip install pytest
+pytest -q
+```
+CI runs on Python 3.10–3.12 via GitHub Actions. A `Dockerfile`, `pyproject.toml`
+(build with `python -m build`), `server.json` (MCP registry), and
+`smithery.yaml` are included.
 
 ## License
 [MIT](LICENSE)
