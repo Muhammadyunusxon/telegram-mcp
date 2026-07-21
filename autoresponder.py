@@ -54,6 +54,13 @@ COOLDOWN = float(os.environ.get("AUTORESPONDER_COOLDOWN", "5"))
 MODEL = os.environ.get("AUTORESPONDER_MODEL", "claude-3-5-haiku-latest")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
+# LLM backend: auto | anthropic | ollama | none
+#   auto  -> API kalit bo'lsa Anthropic, bo'lmasa lokal Ollama, u ham bo'lmasa
+#            bazadagi javob aynan yuboriladi.
+LLM_BACKEND = os.environ.get("AUTORESPONDER_LLM", "auto").lower()
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:3b")
+
 _allowed_raw = {
     p.strip().lstrip("@").lower()
     for p in os.environ.get("AUTORESPONDER_CHATS", "").split(",")
@@ -68,6 +75,56 @@ _last_reply = {}  # chat_id -> timestamp (cooldown uchun)
 _anthropic = None
 
 
+def _prompt(question: str, hits: list) -> str:
+    context = "\n".join(f"- S: {h.get('q','')}\n  J: {h.get('a','')}" for h in hits)
+    return (
+        "Sen mijozlarga yordam beradigan qisqa va samimiy yordamchisan. "
+        "Quyidagi bilimlar bazasidagi javoblarga TAYANIB, mijoz savoliga "
+        "tabiiy, do'stona javob yoz. Faqat shu ma'lumotdan foydalan — "
+        "yangi narsa to'qib chiqarma. Mijoz qaysi tilda yozgan bo'lsa, "
+        "o'sha tilda javob ber.\n\n"
+        f"Bilimlar bazasi:\n{context}\n\n"
+        f"Mijoz savoli: {question}\n\n"
+        "Javob (qisqa, 1-3 gap):"
+    )
+
+
+def _choose_backend() -> str:
+    if LLM_BACKEND in ("anthropic", "ollama", "none"):
+        return LLM_BACKEND
+    # auto
+    if ANTHROPIC_API_KEY:
+        return "anthropic"
+    if _ollama_ready():
+        return "ollama"
+    return "none"
+
+
+def _ollama_ready() -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(OLLAMA_URL + "/api/tags", timeout=3) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def _ollama_generate(prompt: str) -> str:
+    import json
+    import urllib.request
+    payload = json.dumps({
+        "model": OLLAMA_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+    }).encode()
+    req = urllib.request.Request(
+        OLLAMA_URL + "/api/chat", data=payload,
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = json.load(r)
+    return (data.get("message", {}) or {}).get("content", "").strip()
+
+
 def _get_anthropic():
     global _anthropic
     if _anthropic is None:
@@ -76,39 +133,35 @@ def _get_anthropic():
     return _anthropic
 
 
+def _anthropic_generate(prompt: str) -> str:
+    client = _get_anthropic()
+    msg = client.messages.create(
+        model=MODEL, max_tokens=300,
+        messages=[{"role": "user", "content": prompt}])
+    return msg.content[0].text.strip()
+
+
 def build_reply(question: str, hits: list) -> str:
     """
-    KB natijalaridan javob matnini yasaydi.
-    ANTHROPIC_API_KEY bo'lsa — Claude tabiiy javob yozadi (faqat bazaga tayanib).
-    Bo'lmasa — eng mos javobni aynan qaytaradi.
+    KB natijalaridan javob matnini yasaydi. Backend:
+      anthropic -> Claude API (kalit kerak)
+      ollama    -> lokal model (bepul, API kalitsiz)
+      none      -> bazadagi javob aynan
+    Xatolik bo'lsa har doim bazadagi javobga qaytadi.
     """
-    context = "\n".join(
-        f"- S: {h.get('q','')}\n  J: {h.get('a','')}" for h in hits
-    )
-    if not ANTHROPIC_API_KEY:
+    backend = _choose_backend()
+    if backend == "none":
         return hits[0].get("a", "")
-
+    prompt = _prompt(question, hits)
     try:
-        client = _get_anthropic()
-        prompt = (
-            "Sen mijozlarga yordam beradigan qisqa va samimiy yordamchisan. "
-            "Quyidagi bilimlar bazasidagi javoblarga TAYANIB, mijoz savoliga "
-            "tabiiy, do'stona javob yoz. Faqat shu ma'lumotdan foydalan — "
-            "yangi narsa to'qib chiqarma. Mijoz qaysi tilda yozgan bo'lsa, "
-            "o'sha tilda javob ber.\n\n"
-            f"Bilimlar bazasi:\n{context}\n\n"
-            f"Mijoz savoli: {question}\n\n"
-            "Javob (qisqa, 1-3 gap):"
-        )
-        msg = client.messages.create(
-            model=MODEL,
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text.strip()
+        if backend == "anthropic":
+            return _anthropic_generate(prompt) or hits[0].get("a", "")
+        if backend == "ollama":
+            return _ollama_generate(prompt) or hits[0].get("a", "")
     except Exception as e:
-        log.warning(f"AI javob xatosi ({e.__class__.__name__}): bazadagi javob yuboriladi")
-        return hits[0].get("a", "")
+        log.warning(f"AI javob xatosi ({backend}: {e.__class__.__name__}): "
+                    f"bazadagi javob yuboriladi")
+    return hits[0].get("a", "")
 
 
 # --- Telegram real-time listener ------------------------------------------
@@ -178,8 +231,14 @@ async def run():
     me = await client.get_me()
     log.info(f"✅ Auto-responder ishga tushdi. Akkaunt: {me.first_name} "
              f"(@{me.username or '—'})")
+    backend = _choose_backend()
+    backend_desc = {
+        "anthropic": f"Anthropic API ({MODEL})",
+        "ollama": f"Lokal Ollama ({OLLAMA_MODEL})",
+        "none": "AI yo'q (bazadagi javob aynan)",
+    }.get(backend, backend)
     log.info(f"Allowlist: {sorted(_allowed_raw)} | min_score={MIN_SCORE} | "
-             f"AI={'ON' if ANTHROPIC_API_KEY else 'OFF (bazadan aynan)'}")
+             f"backend={backend_desc}")
     log.info("Kutyapman... (to'xtatish uchun Ctrl+C)")
     await client.run_until_disconnected()
 
