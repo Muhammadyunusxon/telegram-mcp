@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "id": 1,
+      "q": "Ish vaqtingiz qanday? Necha soatgacha ishlaysiz?",
+      "a": "Biz dushanbadan jumagacha soat 9:00 dan 18:00 gacha ishlaymiz. Shanba-yakshanba dam olamiz.",
+      "tags": ["ish vaqti", "soat", "grafik", "dam olish"]
+    },
+    {
+      "id": 2,
+      "q": "Yetkazib berasizmi? Dostavka bormi?",
+      "a": "Ha, Toshkent shahri bo'ylab bepul yetkazib beramiz. Viloyatlarga pochta orqali jo'natamiz.",
+      "tags": ["yetkazish", "dostavka", "pochta", "toshkent"]
+    },
+    {
+      "id": 3,
+      "q": "To'lovni qanday amalga oshirish mumkin?",
+      "a": "Naqd pul, Payme, Click yoki bank kartasi orqali to'lashingiz mumkin.",
+      "tags": ["to'lov", "payme", "click", "karta", "naqd"]
+    }
+  ]
+}

@@ -89,7 +89,10 @@
     { "name": "remove_participant", "description": "Remove/ban a member (requires confirmation)" },
     { "name": "promote_admin", "description": "Promote a member to admin" },
     { "name": "join_chat", "description": "Join a group/channel by link or username" },
-    { "name": "leave_chat", "description": "Leave a group/channel (requires confirmation)" }
+    { "name": "leave_chat", "description": "Leave a group/channel (requires confirmation)" },
+    { "name": "answer_from_kb", "description": "Find the best answer from your knowledge base (hybrid search)" },
+    { "name": "kb_add", "description": "Add a question/answer to the knowledge base" },
+    { "name": "kb_list", "description": "List all knowledge-base entries" }
   ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",

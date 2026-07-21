@@ -11,6 +11,9 @@ test_session*
 dist/
 build/
 
+# Shaxsiy javoblar bazasi (namuna: knowledge.example.json commit qilinadi)
+knowledge.json
+
 # MCPB paket va vendored kutubxonalar (release'ga ilova qilinadi, commit qilinmaydi)
 lib/
 *.mcpb

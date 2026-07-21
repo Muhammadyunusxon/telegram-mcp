@@ -26,6 +26,7 @@ EXPECTED_TOOLS = {
     "list_contacts", "resolve_entity", "send_to_channel", "create_group",
     "get_participants", "add_participants", "remove_participant",
     "promote_admin", "join_chat", "leave_chat",
+    "answer_from_kb", "kb_add", "kb_list",
 }
 
 
@@ -46,3 +47,12 @@ def test_send_message_schema():
 def test_delete_requires_confirm_param():
     dm = next(t for t in _tools() if t.name == "delete_message")
     assert "confirm" in dm.inputSchema["properties"]
+
+
+def test_kb_search_finds_relevant_answer():
+    import kb
+    # Namuna bazada "ish vaqti" haqida yozuv bor — boshqacha so'z bilan qidiramiz
+    hits = kb.search("nechida ochilasiz soat", top_k=3)
+    assert hits, "Bazadan natija topilishi kerak edi"
+    # Eng yuqori natija ish vaqti haqidagi yozuv bo'lishi kerak
+    assert "9:00" in hits[0]["a"]

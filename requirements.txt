@@ -1,3 +1,8 @@
 telethon>=1.36.0
 mcp>=1.2.0
 python-dotenv>=1.0.0
+rapidfuzz>=3.0.0
+
+# Ixtiyoriy: semantik (ma'no bo'yicha) qidiruv uchun.
+# Yoqish uchun: TELEGRAM_KB_SEMANTIC=1 va quyidagini o'rnating:
+# fastembed>=0.3.0

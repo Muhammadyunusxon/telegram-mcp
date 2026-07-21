@@ -13,3 +13,4 @@ __pycache__
 .venv
 test_session*
 *.mcpb
+knowledge.json

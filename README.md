@@ -104,6 +104,27 @@ Claude Desktop, then look for the `telegram` tools.
 - "React 🔥 to message 1234 in @mychat"
 - "Schedule 'Good morning' to @friend at 2026-07-21T06:00"
 
+## Knowledge base (answer from your own Q&A)
+
+Store your own answers and let Claude reply from them instead of guessing.
+Answers live in `knowledge.json` (seeded from `knowledge.example.json`):
+
+```json
+{ "entries": [ { "id": 1, "q": "What are your hours?", "a": "Mon–Fri 9–18.", "tags": ["hours"] } ] }
+```
+
+Three tools power it, using **hybrid search** (keyword + fuzzy, with optional
+semantic embeddings):
+
+- `answer_from_kb(question)` — returns the best-matching entries; Claude writes
+  the final reply from them (and won't fabricate if nothing matches).
+- `kb_add(question, answer, tags)` — grow the base straight from chat.
+- `kb_list()` — show everything stored.
+
+Enable smarter semantic matching by installing `fastembed` and setting
+`TELEGRAM_KB_SEMANTIC=1`. Your `knowledge.json` is git-ignored so private
+answers never get pushed.
+
 ## Install as a Claude Desktop Extension (.mcpb)
 
 This repo ships a Desktop Extension bundle so it can be installed in one click

@@ -35,6 +35,8 @@ from telethon.tl.types import User, Chat, Channel, ReactionEmoji
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+import kb as knowledge_base
+
 # --- Sozlamalar / Configuration -------------------------------------------
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -585,6 +587,61 @@ async def leave_chat(chat: str, confirm: bool = False) -> str:
     entity = await client.get_entity(chat)
     await client.delete_dialog(entity)
     return f"✅ Chiqdingiz: {_describe(entity)['name']}"
+
+
+# --- Bilimlar bazasi / Knowledge base -------------------------------------
+
+@mcp.tool(annotations=ToolAnnotations(
+    title="Answer from knowledge base", readOnlyHint=True))
+async def answer_from_kb(question: str, top_k: int = 3) -> str:
+    """Javoblar bazasidan (knowledge.json) savolga eng mos javoblarni topadi.
+
+    Gibrid qidiruv (kalit so'z + fuzzy + ixtiyoriy semantik) ishlatadi.
+    Natijadagi javoblarni ASOS qilib, foydalanuvchiga tabiiy javob yozing.
+    Agar hech narsa topilmasa, o'zingizdan to'qib chiqarmang — bilmasligingizni
+    ayting yoki bazaga javob qo'shishni taklif qiling.
+
+    Args:
+        question: foydalanuvchi savoli.
+        top_k: nechta mos javob qaytarilsin (default 3).
+    """
+    hits = knowledge_base.search(question, top_k=top_k)
+    if not hits:
+        return ("(Bazadan mos javob topilmadi. O'zingizdan to'qimang — "
+                "bilmasligingizni ayting yoki kb_add bilan javob qo'shing.)")
+    lines = ["Bazadan topilgan javoblar (ball bo'yicha):"]
+    for h in hits:
+        tags = f" [teglar: {', '.join(h.get('tags', []))}]" if h.get("tags") else ""
+        lines.append(f"\n• (ball {h['score']}) S: {h.get('q','')}\n  J: {h.get('a','')}{tags}")
+    return "\n".join(lines)
+
+
+@mcp.tool(annotations=ToolAnnotations(title="Add to knowledge base"))
+async def kb_add(question: str, answer: str, tags: list[str] = None) -> str:
+    """Javoblar bazasiga yangi savol-javob qo'shadi.
+
+    Args:
+        question: savol (yoki savol namunasi).
+        answer: shu savolga to'g'ri javob.
+        tags: ixtiyoriy teglar (qidiruvni yaxshilaydi).
+    """
+    entry = knowledge_base.add(question, answer, tags or [])
+    return f"✅ Bazaga qo'shildi (id={entry['id']}): {question}"
+
+
+@mcp.tool(annotations=ToolAnnotations(title="List knowledge base", readOnlyHint=True))
+async def kb_list() -> str:
+    """Bazadagi barcha savol-javoblarni va statistikani ko'rsatadi."""
+    st = knowledge_base.stats()
+    entries = knowledge_base.load()
+    head = (f"Baza: {st['count']} ta yozuv | fuzzy={st['fuzzy']} | "
+            f"semantik={st['semantic']}")
+    if not entries:
+        return head + "\n(baza bo'sh — kb_add bilan javob qo'shing)"
+    lines = [head]
+    for e in entries:
+        lines.append(f"  id={e.get('id')}: {e.get('q','')}  ->  {e.get('a','')}")
+    return "\n".join(lines)
 
 
 # --- Ishga tushirish / Entry point ----------------------------------------

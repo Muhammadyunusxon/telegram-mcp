@@ -31,5 +31,8 @@ Issues = "https://github.com/Muhammadyunusxon/telegram-mcp/issues"
 telegram-mcp = "server:main"
 
 [tool.hatch.build.targets.wheel]
-only-include = ["server.py", "login.py"]
+only-include = ["server.py", "login.py", "kb.py"]
 sources = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
