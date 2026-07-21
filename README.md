@@ -125,6 +125,34 @@ Enable smarter semantic matching by installing `fastembed` and setting
 `TELEGRAM_KB_SEMANTIC=1`. Your `knowledge.json` is git-ignored so private
 answers never get pushed.
 
+## Realtime auto-responder (optional)
+
+`autoresponder.py` is a long-running script that watches incoming Telegram
+messages and **auto-replies from your knowledge base** — phrased naturally by
+the Claude API. It runs independently of the MCP server.
+
+Safety is built in: it only replies in **allowlisted chats**, only when the KB
+has a **confident match** (otherwise it stays silent), never replies to bots or
+itself, and rate-limits per chat.
+
+```bash
+pip install anthropic          # for AI phrasing (optional)
+
+# Dry-run (no Telegram/API needed) — just checks KB gating:
+python3 autoresponder.py --test "can I pay with card?"
+
+# Live:
+AUTORESPONDER_CHATS="@my_customers,123456789" \
+ANTHROPIC_API_KEY="sk-ant-..." \
+python3 autoresponder.py
+```
+
+Environment: `AUTORESPONDER_CHATS` (required allowlist), `ANTHROPIC_API_KEY`
+(optional — without it, the raw KB answer is sent verbatim),
+`AUTORESPONDER_MODEL`, `AUTORESPONDER_MIN_SCORE` (default 0.35),
+`AUTORESPONDER_COOLDOWN`. Keep it running 24/7 with `nohup`, `screen`, `tmux`,
+or a launchd/systemd service.
+
 ## Install as a Claude Desktop Extension (.mcpb)
 
 This repo ships a Desktop Extension bundle so it can be installed in one click
